@@ -131,6 +131,8 @@ jobs:
         rm -rf mt7986*.bin
         rm -rf *.buildinfo
         rm -rf *rax3000m-emmc*.bin
+        rm -rf *.manifest
+        rm -rf *.json
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
