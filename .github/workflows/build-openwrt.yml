@@ -127,10 +127,7 @@ jobs:
       run: |
         cd openwrt/bin/targets/*/*
         rm -rf packages
-        rm -rf mt7988*.bin
-        rm -rf mt7986*.bin
         rm -rf *.buildinfo
-        rm -rf *rax3000m-emmc*.bin
         rm -rf *.manifest
         rm -rf *.json
         rm -rf *bl2.bin
