@@ -13,7 +13,7 @@
 ./scripts/feeds install -a -f -p qmodem
 
 # Modify default IP
-sed -i 's/$DEFAULT_IP/$WANNA_IP/g' package/base-files/files/bin/config_generate
+sed -i "s/${DEFAULT_IP}/${WANNA_IP}/g" package/base-files/files/bin/config_generate
 
 # Modify default theme
 # sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile

@@ -23,7 +23,7 @@ env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
   REPO_BRANCH: openwrt-24.10-6.6
   FEEDS_CONF: feeds.conf.default
-  BUILD_REQUIRED: build-required.txt
+  BUILD_REQUIRED: build-required.sh
   FEEDS_CONFIG: feeds-config.yml
   CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh
@@ -52,12 +52,8 @@ jobs:
       run: |
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
         sudo -E apt-get -qq update
-        cat $GITHUB_WORKSPACE/$BUILD_REQUIRED | \
-        sed -e ':a' -e '/\\$/ { N; s/\\\n//; s/\n/ /; ta; }' | \
-        grep -oP 'apt install -y \K.*' | \
-        tr ' ' '\n' | \
-        grep -v '^$' | \
-        xargs -r sudo -E apt-get -qq install
+        chmod +x $BUILD_REQUIRED
+        $GITHUB_WORKSPACE/$BUILD_REQUIRED
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
@@ -67,9 +63,9 @@ jobs:
     - name: Clone source code
       working-directory: /workdir
       run: |
-        df -hT $PWD
-        git clone $REPO_URL -b $REPO_BRANCH openwrt
-        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+            df -hT $PWD
+            git clone $REPO_URL -b $REPO_BRANCH openwrt
+            ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: Load custom feeds
       run: |
@@ -101,13 +97,13 @@ jobs:
           # 执行检查
           if check_config; then
             # 重新读取配置（因为函数中已读取，但为了清晰重新读取）
-            REPO_URL=$(yq eval '.feeds[0].repo' $GITHUB_WORKSPACE/$FEEDS_CONFIG)
-            PACKAGES=$(yq eval '.feeds[0].packages[]' $GITHUB_WORKSPACE/$FEEDS_CONFIG | tr '\n' ' ')
+            CUSTOM_REPO_URL=$(yq eval '.feeds[0].repo' $GITHUB_WORKSPACE/$FEEDS_CONFIG)
+            CUSTOM_PACKAGES=$(yq eval '.feeds[0].packages[]' $GITHUB_WORKSPACE/$FEEDS_CONFIG | tr '\n' ' ')
 
             echo "✅ 加载自定义 feeds: $REPO_URL"
-            git clone "$REPO_URL" ptmp/small-package
+            git clone "$CUSTOM_REPO_URL" ptmp/small-package
 
-            for pkg in $PACKAGES; do
+            for pkg in $CUSTOM_PACKAGES; do
                 if [ -e "ptmp/small-package/$pkg" ]; then
                   cp -r "ptmp/small-package/$pkg" pkg/
                   echo "  ✅ 复制包: $pkg"
@@ -118,6 +114,8 @@ jobs:
 
           # 只有配置有效时才添加 feeds 源
           echo "echo 'src-link mypkg $GITHUB_WORKSPACE/pkg' >>feeds.conf.default" >> $DIY_P1_SH
+          echo $GITHUB_WORKSPACE/$DIY_P1_SH
+          cat $GITHUB_WORKSPACE/$DIY_P1_SH
           echo "✅ 已添加自定义 feeds 源到 $FEEDS_CONF"
           else
           echo "ℹ️ 使用默认配置，不添加自定义 feeds 源"
@@ -151,7 +149,7 @@ jobs:
         $GITHUB_WORKSPACE/$DIY_P2_SH
 
     - name: SSH connection to Actions
-      uses: P3TERX/ssh2actions@v1.0.0
+      uses: mxschmitt/action-tmate@v3
       if: (github.event.inputs.ssh == 'true' && github.event.inputs.ssh  != 'false') || contains(github.event.action, 'ssh')
       env:
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -162,7 +160,7 @@ jobs:
       run: |
         cd openwrt
         make defconfig
-        make download -j8
+        make download -j8 V=s
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
