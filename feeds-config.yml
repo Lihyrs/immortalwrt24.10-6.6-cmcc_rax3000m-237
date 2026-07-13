@@ -4,5 +4,6 @@ feeds:
     packages:
       - luci-app-adguardhome
       - adguardhome
-      - luci-app-openlist2
-      - openlist2
+      - luci-app-openclash
+      # - luci-app-openlist2
+      # - openlist2

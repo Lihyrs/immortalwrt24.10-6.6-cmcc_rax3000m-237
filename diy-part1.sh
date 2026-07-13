@@ -16,6 +16,6 @@
 # Add a feed source
 #echo 'src-git helloworld https://github.com/fw876/helloworld' >>feeds.conf.default
 #echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
-# git clone https://github.com/gdy666/luci-app-lucky.git package/lucky
 
-
+# QModem
+echo 'src-git qmodem https://github.com/FUjr/QModem.git;main' >> feeds.conf.default

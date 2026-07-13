@@ -28,6 +28,9 @@ env:
   CONFIG_FILE: .config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
+  REPLACE_PACKAGE: replace-package.sh
+  DEFAULT_IP: 192.168.6.1
+  WANNA_IP: 192.168.1.1
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_COWTRANSFER: false
@@ -73,48 +76,79 @@ jobs:
           mkdir -p ptmp
           mkdir -p pkg
 
-          # 读取配置文件（使用 yq 或 jq）
-          if [ -f "$GITHUB_WORKSPACE/$FEEDS_CONFIG" ]; then
-          # 使用 yq 解析 YAML
-          REPO_URL=$(yq eval '.feeds[0].repo' $GITHUB_WORKSPACE/$FEEDS_CONFIG)
-          PACKAGES=$(yq eval '.feeds[0].packages[]' $GITHUB_WORKSPACE/$FEEDS_CONFIG | tr '\n' ' ')
-          else
-          # 默认配置
-          REPO_URL="https://github.com/kenzok8/small-package.git"
-          PACKAGES="luci-app-adguardhome adguardhome"
-          fi
+          # 定义函数来检查配置是否有效
+          check_config() {
+              local config_file="$GITHUB_WORKSPACE/$FEEDS_CONFIG"
 
-          git clone "$REPO_URL" ptmp/small-package
+            # 检查文件是否存在且非空
+            if [ ! -f "$config_file" ] || [ ! -s "$config_file" ]; then
+                echo "⚠️ 配置文件不存在或为空，跳过自定义 feeds 加载"
+                return 1
+            fi
 
-          for pkg in $PACKAGES; do
-          if [ -e "ptmp/small-package/$pkg" ]; then
-              cp -r "ptmp/small-package/$pkg" pkg/
-          fi
+            # 检查 yq 是否能解析出有效内容
+            local repo_url=$(yq eval '.feeds[0].repo' "$config_file" 2>/dev/null)
+            local packages=$(yq eval '.feeds[0].packages[]' "$config_file" 2>/dev/null | tr '\n' ' ')
+
+            if [ -z "$repo_url" ] || [ -z "$packages" ]; then
+                echo "⚠️ 配置文件内容无效（缺少 repo 或 packages），跳过自定义 feeds 加载"
+                return 1
+            fi
+
+            return 0
+          }
+
+          # 执行检查
+          if check_config; then
+            # 重新读取配置（因为函数中已读取，但为了清晰重新读取）
+            REPO_URL=$(yq eval '.feeds[0].repo' $GITHUB_WORKSPACE/$FEEDS_CONFIG)
+            PACKAGES=$(yq eval '.feeds[0].packages[]' $GITHUB_WORKSPACE/$FEEDS_CONFIG | tr '\n' ' ')
+
+            echo "✅ 加载自定义 feeds: $REPO_URL"
+            git clone "$REPO_URL" ptmp/small-package
+
+            for pkg in $PACKAGES; do
+                if [ -e "ptmp/small-package/$pkg" ]; then
+                  cp -r "ptmp/small-package/$pkg" pkg/
+                  echo "  ✅ 复制包: $pkg"
+                else
+                  echo "  ⚠️ 包不存在: $pkg"
+                fi
           done
 
-          echo 'src-link mypkg $GITHUB_WORKSPACE/pkg' >> $FEEDS_CONF
+          # 只有配置有效时才添加 feeds 源
+          echo "echo 'src-link mypkg $GITHUB_WORKSPACE/pkg' >>feeds.conf.default" >> $DIY_P1_SH
+          echo "✅ 已添加自定义 feeds 源到 $FEEDS_CONF"
+          else
+          echo "ℹ️ 使用默认配置，不添加自定义 feeds 源"
+          fi
+
           [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
 
           chmod +x $DIY_P1_SH
-          cp $DIY_P1_SH openwrt/
           cd openwrt
-          ./$DIY_P1_SH
-
+          $GITHUB_WORKSPACE/$DIY_P1_SH
 
     - name: Update feeds
-      run: cd openwrt && ./scripts/feeds update -a
+      run: |
+        chmod +x $REPLACE_PACKAGE
+        cd openwrt
+        ./scripts/feeds update -a
+        $GITHUB_WORKSPACE/$REPLACE_PACKAGE
+
+
 
     - name: Install feeds
       run: cd openwrt && ./scripts/feeds install -a
 
     - name: Load custom configuration
       run: |
-        chmod +x $DIY_P2_SH
+
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-        cp $DIY_P2_SH openwrt/
+        chmod +x $DIY_P2_SH
         cd openwrt
-        ./$DIY_P2_SH
+        $GITHUB_WORKSPACE/$DIY_P2_SH
 
     - name: SSH connection to Actions
       uses: P3TERX/ssh2actions@v1.0.0
@@ -200,7 +234,7 @@ jobs:
         echo "release_tag=$(date +"%Y.%m.%d-%H%M-immortalwrt24.10-6.6-cmcc_rax3000m-237")" >> $GITHUB_OUTPUT
         touch release.txt
         echo "cmcc_rax3000m-237大功率固件" >> release.txt
-        echo "后台：192.168.6.1" >> release.txt
+        echo "后台：$WANNA_IP" >> release.txt
         echo "账号：root" >> release.txt
         echo "密码：无" >> release.txt
         echo "默认主题：Bootstrap" >> release.txt
