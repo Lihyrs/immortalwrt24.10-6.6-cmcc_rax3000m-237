@@ -13,7 +13,7 @@
 # Modify default IP
 
 
-sudo apt -qq install -y libfuse-dev
+
 #Replace golang feed
 
 rm -rf feeds/packages/lang/golang
