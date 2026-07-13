@@ -63,6 +63,11 @@ jobs:
 
     - name: Load custom feeds
       run: |
+        mkdir -p ptmp
+        mkdir -p pkg
+        git clone https://github.com/kenzok8/small-package.git ptmp/small-package
+        cp -r ptmp/small-package/{luci-app-adguardhome,adguardhome} pkg
+        echo 'src-link mypkg $GITHUB_WORKSPACE/pkg' >> $FEEDS_CONF
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
         chmod +x $DIY_P1_SH
         cd openwrt
