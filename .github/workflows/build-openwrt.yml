@@ -63,15 +63,34 @@ jobs:
 
     - name: Load custom feeds
       run: |
-        mkdir -p ptmp
-        mkdir -p pkg
-        git clone https://github.com/kenzok8/small-package.git ptmp/small-package
-        cp -r ptmp/small-package/{luci-app-adguardhome,adguardhome} pkg
-        echo 'src-link mypkg $GITHUB_WORKSPACE/pkg' >> $FEEDS_CONF
-        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-        chmod +x $DIY_P1_SH
-        cd openwrt
-        $GITHUB_WORKSPACE/$DIY_P1_SH
+          mkdir -p ptmp
+          mkdir -p pkg
+
+          # 读取配置文件（使用 yq 或 jq）
+          if [ -f "$GITHUB_WORKSPACE/feeds-config.yml" ]; then
+          # 使用 yq 解析 YAML
+          REPO_URL=$(yq eval '.feeds[0].repo' $GITHUB_WORKSPACE/feeds-config.yml)
+          PACKAGES=$(yq eval '.feeds[0].packages[]' $GITHUB_WORKSPACE/feeds-config.yml | tr '\n' ' ')
+          else
+          # 默认配置
+          REPO_URL="https://github.com/kenzok8/small-package.git"
+          PACKAGES="luci-app-adguardhome adguardhome"
+          fi
+
+          git clone "$REPO_URL" ptmp/small-package
+
+          for pkg in $PACKAGES; do
+          if [ -e "ptmp/small-package/$pkg" ]; then
+              cp -r "ptmp/small-package/$pkg" pkg/
+          fi
+          done
+
+          echo 'src-link mypkg $GITHUB_WORKSPACE/pkg' >> $FEEDS_CONF
+          [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+          chmod +x $DIY_P1_SH
+          cd openwrt
+          $GITHUB_WORKSPACE/$DIY_P1_SH
+
 
     - name: Update feeds
       run: cd openwrt && ./scripts/feeds update -a

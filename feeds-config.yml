@@ -1,0 +1,6 @@
+feeds:
+  - name: small-package
+    repo: https://github.com/kenzok8/small-package.git
+    packages:
+      - luci-app-adguardhome
+      - adguardhome
