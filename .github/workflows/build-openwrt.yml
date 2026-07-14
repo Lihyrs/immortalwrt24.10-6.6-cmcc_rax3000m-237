@@ -67,6 +67,15 @@ jobs:
             git clone $REPO_URL -b $REPO_BRANCH openwrt
             ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
+    - name: Merge device-specific
+      if: hashFiles('devices/target') != ''
+      run: |
+          if [ -d "devices/target" ]; then
+            echo "Merge devices dts and makefile"
+            mkdir -p openwrt/target   # 确保目标目录存在
+            cp -rf devices/target/. openwrt/target/
+          fi
+
     - name: Load custom feeds
       run: |
           mkdir -p ptmp
