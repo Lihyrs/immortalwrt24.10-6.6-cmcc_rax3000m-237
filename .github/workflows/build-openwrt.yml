@@ -67,14 +67,25 @@ jobs:
             git clone $REPO_URL -b $REPO_BRANCH openwrt
             ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-    - name: Merge device-specific
+    - name: Merge device tree files
       if: hashFiles('devices/target') != ''
       run: |
-          if [ -d "devices/target" ]; then
-            echo "Merge devices dts and makefile"
-            mkdir -p openwrt/target   # 确保目标目录存在
-            cp -rf devices/target/. openwrt/target/
+        if [ -d "devices/target" ]; then
+          echo "Merge devices dts and makefile"
+          # Use absolute path to avoid symlink issues
+          mkdir -p /workdir/openwrt/target/linux/mediatek/dts
+          mkdir -p /workdir/openwrt/target/linux/mediatek/image
+
+          # Copy device tree files
+          if [ -d "devices/target/linux" ]; then
+            cp -rfv devices/target/linux/* /workdir/openwrt/target/linux/
           fi
+
+          # Verify the copy was successful
+          ls -la /workdir/openwrt/target/linux/mediatek/dts/ || echo "Warning: dts directory not found"
+        else
+          echo "devices/target directory not found"
+        fi
 
     - name: Load custom feeds
       run: |
