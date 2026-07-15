@@ -37,7 +37,7 @@ env:
   BUILD_REQUIRED: build-required.sh
   FEEDS_CONFIG: feeds-config.yml
   CONFIG_FILE: .config
-  # DIY_P1_SH: diy-part1.sh
+#   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
   REPLACE_PACKAGE: replace-package.sh
   DEFAULT_IP: 192.168.6.1
@@ -108,7 +108,7 @@ jobs:
         fi
 
         # 确保 feeds.conf.default 存在
-        touch feeds.conf.default
+        touch openwrt/feeds.conf.default
 
         # 定义检查函数：检查是否已存在指定 feed 名称（src-git 或 src-link）
         feed_exists() {
@@ -122,7 +122,7 @@ jobs:
           else
             return 1
           fi
-          grep -qE "$pattern" feeds.conf.default 2>/dev/null
+          grep -qE "$pattern" openwrt/feeds.conf.default 2>/dev/null
         }
 
         FEED_COUNT=$(yq eval '.feeds | length' $GITHUB_WORKSPACE/$FEEDS_CONFIG)
@@ -132,6 +132,8 @@ jobs:
           branch=$(yq eval ".feeds[$i].repo_branch" $GITHUB_WORKSPACE/$FEEDS_CONFIG)
           packages=$(yq eval ".feeds[$i].packages[]" $GITHUB_WORKSPACE/$FEEDS_CONFIG)
           overwrite=$(yq eval ".feeds[$i].overwrite" $GITHUB_WORKSPACE/$FEEDS_CONFIG)
+          # 处理 name 中的连字符，确保 feed 名称合法
+          name=${name//-/}
 
           # 判断 packages 是否为空
           if [ -z "$packages" ]; then
@@ -143,9 +145,11 @@ jobs:
             else
               # 添加 src-git
               if [ -n "$branch" ] && [ "$branch" != "null" ]; then
-                echo "src-git $name $repo;$branch" >> feeds.conf.default
+                echo "src-git $name $repo;$branch" >> openwrt/feeds.conf.default
+                # echo "echo 'src-git $name $repo;$branch' >>feeds.conf.default" >> $DIY_P1_SH
               else
-                echo "src-git $name $repo" >> feeds.conf.default
+                echo "src-git $name $repo" >> openwrt/feeds.conf.default
+                # echo "echo 'src-git $name $repo' >>feeds.conf.default" >> $DIY_P1_SH
               fi
               echo "✅ Added src-git feed: $name"
               # 记录 overwrite
@@ -174,8 +178,10 @@ jobs:
                   fi
                 fi
               done
+            #   cp -r pkg/* ../
               # 添加 src-link
-              echo "src-link mypkg_$name $GITHUB_WORKSPACE/pkg/$name" >> feeds.conf.default
+              echo "src-link mypkg_$name $GITHUB_WORKSPACE/pkg/$name" >> openwrt/feeds.conf.default
+            #   echo "echo 'src-link mypkg_$name $GITHUB_WORKSPACE/pkg/$name' >>feeds.conf.default" >> $DIY_P1_SH
               echo "✅ Added src-link for feed: $name (packages: ${packages//$'\n'/, })"
               # 记录 overwrite
               if [ "$overwrite" = "true" ]; then
@@ -186,21 +192,18 @@ jobs:
           fi
         done
 
-    - name: Check feeds.conf.default
+
+
+    - name: display final feeds
       run: |
+        # [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+        # chmod +x $DIY_P1_SH
+        cd openwrt
+        # $GITHUB_WORKSPACE/$DIY_P1_SH
         echo "📄 Current feeds.conf.default content:"
         cat feeds.conf.default
 
-    - name: Load custom feeds
-      run: |
-        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-
-        # chmod +x $DIY_P1_SH
-        # cd openwrt
-        # $GITHUB_WORKSPACE/$DIY_P1_SH
-
     - name: Update feeds
-      if: success()
       run: |
         chmod +x $REPLACE_PACKAGE
         cd openwrt
@@ -208,6 +211,7 @@ jobs:
         $GITHUB_WORKSPACE/$REPLACE_PACKAGE
 
     - name: Install feeds
+      id: install_feeds
       run: |
         cd openwrt
         # 正常安装所有 feeds
@@ -222,16 +226,17 @@ jobs:
             fi
           done < ../overwrite_feeds.txt
         fi
+        echo "status=success" >> $GITHUB_OUTPUT
 
 
 
-    # - name: Load custom configuration
-    #   run: |
-    #     [ -e files ] && mv files openwrt/files
-    #     [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-    #     chmod +x $DIY_P2_SH
-    #     cd openwrt
-    #     $GITHUB_WORKSPACE/$DIY_P2_SH
+    - name: Set custom configuration
+      run: |
+        [ -e files ] && mv files openwrt/files
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        chmod +x $DIY_P2_SH
+        cd openwrt
+        $GITHUB_WORKSPACE/$DIY_P2_SH
 
     - name: SSH connection to Actions
       uses: mxschmitt/action-tmate@v3
@@ -250,6 +255,7 @@ jobs:
         find dl -size -1024c -exec rm -f {} \;
 
     - name: Compile the firmware
+      if: steps.install_feeds.outputs.status == 'success' && !cancelled()
       id: compile
       run: |
         cd openwrt
@@ -262,10 +268,13 @@ jobs:
 
     # 新增：按需构建 ImageBuilder
     - name: Build ImageBuilder (optional)
-      if: env.BUILD_IMAGEBUILDER == 'true'
+      if: env.BUILD_IMAGEBUILDER == 'true' && success() && !cancelled()
+      id: build_ib
       run: |
         cd openwrt
         make IB -j$(nproc) V=s
+
+        echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Check space usage
       if: (!cancelled())
@@ -281,7 +290,7 @@ jobs:
     # 整理编译好的固件
     - name: Organize files
       id: organize
-      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
         cd openwrt/bin/targets/*/*
         rm -rf packages
@@ -302,7 +311,7 @@ jobs:
     # 新增：将 ImageBuilder 作为 Artifact 上传（可选）
     - name: Upload ImageBuilder as artifact (optional)
       uses: actions/upload-artifact@main
-      if: env.BUILD_IMAGEBUILDER == 'true' && !cancelled()
+      if:  steps.build_ib.outputs.status == 'success' && env.BUILD_IMAGEBUILDER == 'true' && !cancelled()
       with:
         name: ImageBuilder${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: openwrt/bin/targets/*/*/immortalwrt-imagebuilder-*.tar.zst
