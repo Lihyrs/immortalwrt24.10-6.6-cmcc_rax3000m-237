@@ -7,6 +7,7 @@
 #       - package2
 #       # ...
 #     overwrite: <true|false>        # 可选，是否对该 feed 强制安装（默认 false）
+
 feeds:
   - name: small-package
     repo: https://github.com/kenzok8/small-package.git
@@ -14,11 +15,8 @@ feeds:
       - luci-app-adguardhome
       - adguardhome
       - luci-app-openclash
-      # - luci-app-openlist2
-      # - openlist2
 
   - name: qmodem
     repo: https://github.com/FUjr/QModem.git
-    repo_barnch: main  #default null
-    overwrite:true
-
+    repo_branch: main
+    overwrite: true
