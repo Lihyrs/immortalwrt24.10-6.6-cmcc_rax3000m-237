@@ -86,9 +86,8 @@ jobs:
       if: hashFiles('target') != ''
       run: |
         if [ -d "target" ]; then
-          echo "Moving target directory to openwrt root"
-          # 移动整个target目录到openwrt目录，覆盖同名文件
-          mv -fv target /workdir/openwrt/
+          echo "copy target directory to openwrt root"
+          cp -rf target/* /workdir/openwrt/target/
 
           # 验证移动后的目录结构
           ls -la /workdir/openwrt/target/linux/mediatek/dts/ || echo "Warning: dts directory not found"
