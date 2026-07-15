@@ -10,7 +10,6 @@
 # See /LICENSE for more information.
 #
 
-./scripts/feeds install -a -f -p qmodem
 
 # Modify default IP
 sed -i "s/${DEFAULT_IP}/${WANNA_IP}/g" package/base-files/files/bin/config_generate

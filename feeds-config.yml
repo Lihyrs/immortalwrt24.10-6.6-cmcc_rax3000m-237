@@ -1,3 +1,12 @@
+# feeds:
+#   - name: <feed名称>                # 必填，用作 feed 标识
+#     repo: <git仓库地址>             # 必填，feed 仓库的克隆 URL
+#     repo_branch: <分支或标签>        # 可选，要克隆的分支或标签（默认使用仓库默认分支）
+#     packages:                      # 可选，要从该 feed 中复制的软件包目录列表
+#       - package1
+#       - package2
+#       # ...
+#     overwrite: <true|false>        # 可选，是否对该 feed 强制安装（默认 false）
 feeds:
   - name: small-package
     repo: https://github.com/kenzok8/small-package.git
@@ -7,3 +16,9 @@ feeds:
       - luci-app-openclash
       # - luci-app-openlist2
       # - openlist2
+
+  - name: qmodem
+    repo: https://github.com/FUjr/QModem.git
+    repo_barnch: main  #default null
+    overwrite:true
+
