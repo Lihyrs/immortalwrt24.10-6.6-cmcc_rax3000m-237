@@ -18,6 +18,12 @@ on:
         description: 'SSH connection to Actions'
         required: false
         default: 'false'
+      # 新增输入：是否构建 ImageBuilder
+      build_imagebuilder:
+        description: 'Build ImageBuilder (IB)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
@@ -37,6 +43,8 @@ env:
   UPLOAD_WETRANSFER: false
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
+  # 新增环境变量，用于条件判断
+  BUILD_IMAGEBUILDER: ${{ github.event.inputs.build_imagebuilder == 'true' && 'true' || 'false' }}
 
 jobs:
   build:
@@ -63,89 +71,83 @@ jobs:
     - name: Clone source code
       working-directory: /workdir
       run: |
-            df -hT $PWD
-            git clone $REPO_URL -b $REPO_BRANCH openwrt
-            ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-    - name: Merge device tree files
-      if: hashFiles('devices/target') != ''
+    - name: Merge files of target
+      if: hashFiles('target') != ''
       run: |
-        if [ -d "devices/target" ]; then
-          echo "Merge devices dts and makefile"
-          # Use absolute path to avoid symlink issues
-          mkdir -p /workdir/openwrt/target/linux/mediatek/dts
-          mkdir -p /workdir/openwrt/target/linux/mediatek/image
+        if [ -d "target" ]; then
+          echo "Moving target directory to openwrt root"
+          # 移动整个target目录到openwrt目录，覆盖同名文件
+          mv -fv target /workdir/openwrt/
 
-          # Copy device tree files
-          if [ -d "devices/target/linux" ]; then
-            cp -rfv devices/target/linux/* /workdir/openwrt/target/linux/
-          fi
-
-          # Verify the copy was successful
+          # 验证移动后的目录结构
           ls -la /workdir/openwrt/target/linux/mediatek/dts/ || echo "Warning: dts directory not found"
         else
-          echo "devices/target directory not found"
+          echo "target directory not found"
         fi
 
     - name: Load custom feeds
       run: |
-          mkdir -p ptmp
-          mkdir -p pkg
+        mkdir -p ptmp
+        mkdir -p pkg
 
-          # 定义函数来检查配置是否有效
-          check_config() {
-              local config_file="$GITHUB_WORKSPACE/$FEEDS_CONFIG"
+        # 定义函数来检查配置是否有效
+        check_config() {
+            local config_file="$GITHUB_WORKSPACE/$FEEDS_CONFIG"
 
-            # 检查文件是否存在且非空
-            if [ ! -f "$config_file" ] || [ ! -s "$config_file" ]; then
-                echo "⚠️ 配置文件不存在或为空，跳过自定义 feeds 加载"
-                return 1
-            fi
-
-            # 检查 yq 是否能解析出有效内容
-            local repo_url=$(yq eval '.feeds[0].repo' "$config_file" 2>/dev/null)
-            local packages=$(yq eval '.feeds[0].packages[]' "$config_file" 2>/dev/null | tr '\n' ' ')
-
-            if [ -z "$repo_url" ] || [ -z "$packages" ]; then
-                echo "⚠️ 配置文件内容无效（缺少 repo 或 packages），跳过自定义 feeds 加载"
-                return 1
-            fi
-
-            return 0
-          }
-
-          # 执行检查
-          if check_config; then
-            # 重新读取配置（因为函数中已读取，但为了清晰重新读取）
-            CUSTOM_REPO_URL=$(yq eval '.feeds[0].repo' $GITHUB_WORKSPACE/$FEEDS_CONFIG)
-            CUSTOM_PACKAGES=$(yq eval '.feeds[0].packages[]' $GITHUB_WORKSPACE/$FEEDS_CONFIG | tr '\n' ' ')
-
-            echo "✅ 加载自定义 feeds: $REPO_URL"
-            git clone "$CUSTOM_REPO_URL" ptmp/small-package
-
-            for pkg in $CUSTOM_PACKAGES; do
-                if [ -e "ptmp/small-package/$pkg" ]; then
-                  cp -r "ptmp/small-package/$pkg" pkg/
-                  echo "  ✅ 复制包: $pkg"
-                else
-                  echo "  ⚠️ 包不存在: $pkg"
-                fi
-          done
-
-          # 只有配置有效时才添加 feeds 源
-          echo "echo 'src-link mypkg $GITHUB_WORKSPACE/pkg' >>feeds.conf.default" >> $DIY_P1_SH
-          echo $GITHUB_WORKSPACE/$DIY_P1_SH
-          cat $GITHUB_WORKSPACE/$DIY_P1_SH
-          echo "✅ 已添加自定义 feeds 源到 $FEEDS_CONF"
-          else
-          echo "ℹ️ 使用默认配置，不添加自定义 feeds 源"
+          # 检查文件是否存在且非空
+          if [ ! -f "$config_file" ] || [ ! -s "$config_file" ]; then
+              echo "⚠️ 配置文件不存在或为空，跳过自定义 feeds 加载"
+              return 1
           fi
 
-          [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+          # 检查 yq 是否能解析出有效内容
+          local repo_url=$(yq eval '.feeds[0].repo' "$config_file" 2>/dev/null)
+          local packages=$(yq eval '.feeds[0].packages[]' "$config_file" 2>/dev/null | tr '\n' ' ')
 
-          chmod +x $DIY_P1_SH
-          cd openwrt
-          $GITHUB_WORKSPACE/$DIY_P1_SH
+          if [ -z "$repo_url" ] || [ -z "$packages" ]; then
+              echo "⚠️ 配置文件内容无效（缺少 repo 或 packages），跳过自定义 feeds 加载"
+              return 1
+          fi
+
+          return 0
+        }
+
+        # 执行检查
+        if check_config; then
+          # 重新读取配置（因为函数中已读取，但为了清晰重新读取）
+          CUSTOM_REPO_URL=$(yq eval '.feeds[0].repo' $GITHUB_WORKSPACE/$FEEDS_CONFIG)
+          CUSTOM_PACKAGES=$(yq eval '.feeds[0].packages[]' $GITHUB_WORKSPACE/$FEEDS_CONFIG | tr '\n' ' ')
+
+          echo "✅ 加载自定义 feeds: $REPO_URL"
+          git clone "$CUSTOM_REPO_URL" ptmp/small-package
+
+          for pkg in $CUSTOM_PACKAGES; do
+              if [ -e "ptmp/small-package/$pkg" ]; then
+                cp -r "ptmp/small-package/$pkg" pkg/
+                echo "  ✅ 复制包: $pkg"
+              else
+                echo "  ⚠️ 包不存在: $pkg"
+              fi
+        done
+
+        # 只有配置有效时才添加 feeds 源
+        echo "echo 'src-link mypkg $GITHUB_WORKSPACE/pkg' >>feeds.conf.default" >> $DIY_P1_SH
+        echo $GITHUB_WORKSPACE/$DIY_P1_SH
+        cat $GITHUB_WORKSPACE/$DIY_P1_SH
+        echo "✅ 已添加自定义 feeds 源到 $FEEDS_CONF"
+        else
+        echo "ℹ️ 使用默认配置，不添加自定义 feeds 源"
+        fi
+
+        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+
+        chmod +x $DIY_P1_SH
+        cd openwrt
+        $GITHUB_WORKSPACE/$DIY_P1_SH
 
     - name: Update feeds
       run: |
@@ -154,14 +156,11 @@ jobs:
         ./scripts/feeds update -a
         $GITHUB_WORKSPACE/$REPLACE_PACKAGE
 
-
-
     - name: Install feeds
       run: cd openwrt && ./scripts/feeds install -a
 
     - name: Load custom configuration
       run: |
-
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
         chmod +x $DIY_P2_SH
@@ -195,6 +194,13 @@ jobs:
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
+    # 新增：按需构建 ImageBuilder
+    - name: Build ImageBuilder (optional)
+      if: env.BUILD_IMAGEBUILDER == 'true'
+      run: |
+        cd openwrt
+        make IB -j$(nproc) V=s
+
     - name: Check space usage
       if: (!cancelled())
       run: df -hT
@@ -227,6 +233,14 @@ jobs:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
 
+    # 新增：将 ImageBuilder 作为 Artifact 上传（可选）
+    - name: Upload ImageBuilder as artifact (optional)
+      uses: actions/upload-artifact@main
+      if: env.BUILD_IMAGEBUILDER == 'true' && !cancelled()
+      with:
+        name: ImageBuilder${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: openwrt/bin/targets/*/*/immortalwrt-imagebuilder-*.tar.zst
+
     - name: Upload firmware to cowtransfer
       id: cowtransfer
       if: steps.organize.outputs.status == 'success' && env.UPLOAD_COWTRANSFER == 'true' && !cancelled()
@@ -256,7 +270,7 @@ jobs:
         echo "账号：root" >> release.txt
         echo "密码：无" >> release.txt
         echo "默认主题：Bootstrap" >> release.txt
-        echo "集成插件：aria2 openlist2 diskman lucky ksmb hd-idle autoreboot mtwifi-cfg " >> release.txt
+        echo "集成插件：openclash adguardhome mosdns qmodem" >> release.txt
         echo "编译源码：https://github.com/padavanonly/immortalwrt-mt798x-6.6" >> release.txt
         echo "status=success" >> $GITHUB_OUTPUT
 
@@ -269,6 +283,16 @@ jobs:
         tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
+
+    # 新增：将 ImageBuilder 上传到 Release（可选）
+    - name: Upload ImageBuilder to release (optional)
+      uses: softprops/action-gh-release@v1
+      if: env.BUILD_IMAGEBUILDER == 'true' && steps.tag.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        files: openwrt/bin/targets/*/*/immortalwrt-imagebuilder-*.tar.zst
 
     - name: Delete workflow runs
       uses: GitRML/delete-workflow-runs@main
