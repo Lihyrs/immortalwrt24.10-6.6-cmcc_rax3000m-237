@@ -106,8 +106,8 @@ jobs:
           sudo chmod +x /usr/local/bin/yq
         fi
 
-        # 确保 openwrt/feeds.conf.default 存在
-        touch openwrt/feeds.conf.default
+        # 确保 feeds.conf.default 存在
+        touch feeds.conf.default
 
         # 定义检查函数：检查是否已存在指定 feed 名称（src-git 或 src-link）
         feed_exists() {
@@ -121,7 +121,7 @@ jobs:
           else
             return 1
           fi
-          grep -qE "$pattern" openwrt/feeds.conf.default 2>/dev/null
+          grep -qE "$pattern" feeds.conf.default 2>/dev/null
         }
 
         FEED_COUNT=$(yq eval '.feeds | length' $GITHUB_WORKSPACE/$FEEDS_CONFIG)
@@ -142,9 +142,9 @@ jobs:
             else
               # 添加 src-git
               if [ -n "$branch" ] && [ "$branch" != "null" ]; then
-                echo "src-git $name $repo;$branch" >> openwrt/feeds.conf.default
+                echo "src-git $name $repo;$branch" >> feeds.conf.default
               else
-                echo "src-git $name $repo" >> openwrt/feeds.conf.default
+                echo "src-git $name $repo" >> feeds.conf.default
               fi
               echo "✅ Added src-git feed: $name"
               # 记录 overwrite
@@ -174,7 +174,7 @@ jobs:
                 fi
               done
               # 添加 src-link
-              echo "src-link mypkg_$name $GITHUB_WORKSPACE/pkg/$name" >> openwrt/feeds.conf.default
+              echo "src-link mypkg_$name $GITHUB_WORKSPACE/pkg/$name" >> feeds.conf.default
               echo "✅ Added src-link for feed: $name (packages: ${packages//$'\n'/, })"
               # 记录 overwrite
               if [ "$overwrite" = "true" ]; then
@@ -185,12 +185,18 @@ jobs:
           fi
         done
 
-    # - name: Load custom feeds
-    #   run: |
-    #     [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-    #     # chmod +x $DIY_P1_SH
-    #     # cd openwrt
-    #     # $GITHUB_WORKSPACE/$DIY_P1_SH
+    - name: Check feeds.conf.default
+      run: |
+        echo "📄 Current feeds.conf.default content:"
+        cat feeds.conf.default
+
+    - name: Load custom feeds
+      run: |
+        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+
+        # chmod +x $DIY_P1_SH
+        # cd openwrt
+        # $GITHUB_WORKSPACE/$DIY_P1_SH
 
     - name: Update feeds
       run: |
