@@ -278,7 +278,7 @@ jobs:
       id: build_ib
       run: |
         cd openwrt
-        make IB -j$(nproc) V=s
+        make ib -j$(nproc) V=s
 
         echo "status=success" >> $GITHUB_OUTPUT
 
