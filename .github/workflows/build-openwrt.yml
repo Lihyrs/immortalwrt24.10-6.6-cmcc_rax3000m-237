@@ -95,7 +95,7 @@ jobs:
           echo "target directory not found"
         fi
 
-    - name: Set custom feeds
+    - name: Set up custom feeds
       if: success()
       run: |
         mkdir -p ptmp pkg
@@ -194,6 +194,8 @@ jobs:
 
 
 
+
+
     - name: display final feeds
       run: |
         # [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
@@ -217,20 +219,24 @@ jobs:
         # 正常安装所有 feeds
         ./scripts/feeds install -a
 
+        echo "display overwrite feeds:"
+        cat $GITHUB_WORKSPACE/overwrite_feeds.txt
+
         # 对标记为 overwrite 的 feed 进行强制安装
-        if [ -f ../overwrite_feeds.txt ]; then
+        if [ -f $GITHUB_WORKSPACE/overwrite_feeds.txt ]; then
           while read -r feed_name; do
             if [ -n "$feed_name" ]; then
               echo "🔧 Force-installing feed: $feed_name"
               ./scripts/feeds install -a -f -p "$feed_name"
             fi
-          done < ../overwrite_feeds.txt
+          done < $GITHUB_WORKSPACE/overwrite_feeds.txt
         fi
         echo "status=success" >> $GITHUB_OUTPUT
 
 
 
-    - name: Set custom configuration
+    - name: Set up custom configuration
+      if: success()
       run: |
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
@@ -277,7 +283,7 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Check space usage
-      if: (!cancelled())
+      if: steps.compile.outputs.status == 'success' && !cancelled()
       run: df -hT
 
     - name: Upload bin directory
@@ -336,7 +342,7 @@ jobs:
 
     - name: Generate release tag
       id: tag
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
         echo "release_tag=$(date +"%Y.%m.%d-%H%M-immortalwrt24.10-6.6-cmcc_rax3000m-237")" >> $GITHUB_OUTPUT
         touch release.txt
