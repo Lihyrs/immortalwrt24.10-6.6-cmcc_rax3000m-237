@@ -19,11 +19,11 @@ on:
         required: false
         default: 'false'
       # 新增输入：是否构建 ImageBuilder
-      build_imagebuilder:
-        description: 'Build ImageBuilder (IB)'
-        required: false
-        type: boolean
-        default: false
+    #   build_imagebuilder:
+    #     description: 'Build ImageBuilder (IB)'
+    #     required: false
+    #     type: boolean
+    #     default: false
       # overwrite_package:
       #   description: './scripts/feeds install -f'
       #   required: false
@@ -49,7 +49,7 @@ env:
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
   # 新增环境变量，用于条件判断
-  BUILD_IMAGEBUILDER: ${{ github.event.inputs.build_imagebuilder }}
+#   BUILD_IMAGEBUILDER: ${{ github.event.inputs.build_imagebuilder }}
   # OVERWRITE_PACKAGE: ${{ github.event.inputs.overwrite_package }}
 
 
@@ -272,15 +272,15 @@ jobs:
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
-    # 新增：按需构建 ImageBuilder
-    - name: Build ImageBuilder (optional)
-      if: env.BUILD_IMAGEBUILDER == 'true' && success() && !cancelled()
-      id: build_ib
-      run: |
-        cd openwrt
-        make ib -j$(nproc) V=s
+    # # 新增：按需构建 ImageBuilder
+    # - name: Build ImageBuilder (optional)
+    #   if: env.BUILD_IMAGEBUILDER == 'true' && success() && !cancelled()
+    #   id: build_ib
+    #   run: |
+    #     cd openwrt
+    #     make ib -j$(nproc) V=s
 
-        echo "status=success" >> $GITHUB_OUTPUT
+    #     echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Check space usage
       if: steps.compile.outputs.status == 'success' && !cancelled()
@@ -315,12 +315,12 @@ jobs:
         path: ${{ env.FIRMWARE }}
 
     # 新增：将 ImageBuilder 作为 Artifact 上传（可选）
-    - name: Upload ImageBuilder as artifact (optional)
-      uses: actions/upload-artifact@main
-      if:  steps.build_ib.outputs.status == 'success' && env.BUILD_IMAGEBUILDER == 'true' && !cancelled()
-      with:
-        name: ImageBuilder${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
-        path: openwrt/bin/targets/*/*/immortalwrt-imagebuilder-*.tar.zst
+    # - name: Upload ImageBuilder as artifact (optional)
+    #   uses: actions/upload-artifact@main
+    #   if:  steps.build_ib.outputs.status == 'success' && env.BUILD_IMAGEBUILDER == 'true' && !cancelled()
+    #   with:
+    #     name: ImageBuilder${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+    #     path: openwrt/bin/targets/*/*/immortalwrt-imagebuilder-*.tar.zst
 
     - name: Upload firmware to cowtransfer
       id: cowtransfer
@@ -365,15 +365,15 @@ jobs:
         body_path: release.txt
         files: ${{ env.FIRMWARE }}/*
 
-    # 新增：将 ImageBuilder 上传到 Release（可选）
-    - name: Upload ImageBuilder to release (optional)
-      uses: softprops/action-gh-release@v1
-      if: env.BUILD_IMAGEBUILDER == 'true' && steps.tag.outputs.status == 'success' && !cancelled()
-      env:
-        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-      with:
-        tag_name: ${{ steps.tag.outputs.release_tag }}
-        files: openwrt/bin/targets/*/*/immortalwrt-imagebuilder-*.tar.zst
+    # # 新增：将 ImageBuilder 上传到 Release（可选）
+    # - name: Upload ImageBuilder to release (optional)
+    #   uses: softprops/action-gh-release@v1
+    #   if: env.BUILD_IMAGEBUILDER == 'true' && steps.tag.outputs.status == 'success' && !cancelled()
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+    #   with:
+    #     tag_name: ${{ steps.tag.outputs.release_tag }}
+    #     files: openwrt/bin/targets/*/*/immortalwrt-imagebuilder-*.tar.zst
 
     - name: Delete workflow runs
       uses: GitRML/delete-workflow-runs@main
