@@ -82,6 +82,16 @@ jobs:
         git clone $REPO_URL -b $REPO_BRANCH openwrt
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
+    - name: Cache OpenWrt build
+      uses: klever1988/cachewrtbuild@main
+      with:
+        ccache: true               # 启用 ccache
+        mixkey: 'mediatek-filogic' # 根据你的设备平台设置，此处为 mediatek filogic
+        prefix: 'openwrt'          # 缓存名前缀，与你的项目名一致
+        # toolchain: true          # 默认 true，缓存工具链
+        # skip: true               # 默认 true，跳过已编译的工具链
+        # clean: false             # 默认 false，不清除缓存
+
     - name: Merge files of target
       if: hashFiles('target') != ''
       run: |
