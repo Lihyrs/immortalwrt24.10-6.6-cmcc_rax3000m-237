@@ -19,4 +19,4 @@ feeds:
   - name: qmodem
     repo: https://github.com/FUjr/QModem.git
     repo_branch: main
-    # overwrite: true
+    overwrite: true
