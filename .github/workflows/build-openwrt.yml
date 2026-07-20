@@ -18,17 +18,6 @@ on:
         description: 'SSH connection to Actions'
         required: false
         default: 'false'
-      # 新增输入：是否构建 ImageBuilder
-    #   build_imagebuilder:
-    #     description: 'Build ImageBuilder (IB)'
-    #     required: false
-    #     type: boolean
-    #     default: false
-      # overwrite_package:
-      #   description: './scripts/feeds install -f'
-      #   required: false
-      #   type: boolean
-      #   default: false
 
 env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
@@ -272,26 +261,17 @@ jobs:
 
     - name: Compile the firmware
       if: steps.install_feeds.outputs.status == 'success' && !cancelled()
-      id: compile
+      id: compilw
       run: |
         cd openwrt
         echo -e "$(nproc) thread compile"
         #make -j$(nproc) || make -j1 || make -j1 V=s
-        make -j1 V=s
+        make -j1 V=w
         echo "status=success" >> $GITHUB_OUTPUT
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
-    # # 新增：按需构建 ImageBuilder
-    # - name: Build ImageBuilder (optional)
-    #   if: env.BUILD_IMAGEBUILDER == 'true' && success() && !cancelled()
-    #   id: build_ib
-    #   run: |
-    #     cd openwrt
-    #     make ib -j$(nproc) V=s
-
-    #     echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Check space usage
       if: steps.compile.outputs.status == 'success' && !cancelled()
