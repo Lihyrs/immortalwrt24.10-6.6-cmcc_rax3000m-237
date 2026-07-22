@@ -14,6 +14,10 @@
 # Modify default IP
 sed -i "s/${DEFAULT_IP}/${WANNA_IP}/g" package/base-files/files/bin/config_generate
 
+# Fix libxcrypt build error with musl fortify
+sed -i '/^PKG_NAME:=libxcrypt/a PKG_FORTIFY_SOURCE:=0' package/feeds/packages/libxcrypt/Makefile
+
+
 # Modify default theme
 # sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
 
