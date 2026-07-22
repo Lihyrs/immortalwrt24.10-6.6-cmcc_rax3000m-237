@@ -39,6 +39,7 @@ env:
 #   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
   REPLACE_PACKAGE: replace-package.sh
+  CFG_HELPER: cfghelper.py
   DEFAULT_IP: 192.168.6.1
   WANNA_IP: 192.168.1.1
   UPLOAD_BIN_DIR: false
@@ -212,8 +213,11 @@ jobs:
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
         chmod +x $DIY_P2_SH
+        chmod +x $CFG_HELPER
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
+        echo "Enable packages:"
+        $GITHUB_WORKSPACE/$CFG_HELPER get package .config
 
     - name: SSH connection to Actions
       uses: mxschmitt/action-tmate@v3
@@ -318,7 +322,10 @@ jobs:
           echo "release_tag=$(date +"%Y.%m.%d-%H%M-immortalwrt24.10-6.6-cmcc_rax3000m-237")" >> $GITHUB_OUTPUT
           touch release.txt
 
+          chmod +x $CFG_HELPER
+
           # 提取所有 luci-app 包的核心名称（仅去除 _ 子设置，保留 - 附属包）
+
           PLUGINS=$( \
           $GITHUB_WORKSPACE/cfghelper.py get app $GITHUB_WORKSPACE/openwrt/.config \
           | grep '^CONFIG_PACKAGE_luci-app-' \
