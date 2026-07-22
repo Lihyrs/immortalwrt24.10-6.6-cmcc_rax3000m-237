@@ -290,6 +290,20 @@ jobs:
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
 
+
+    # ===== 新增：打包 host 目录 =====
+    - name: Package host directory
+      if: steps.compile.outputs.status == 'success' && !cancelled()
+      run: |
+        cd openwrt
+        if [ -d build_dir/host ]; then
+          tar -czf $GITHUB_WORKSPACE/host-tools.tar.gz -C build_dir/host .
+          echo "HOST_PACKAGE=$GITHUB_WORKSPACE/host-tools.tar.gz" >> $GITHUB_ENV
+          echo "✅ Host directory packaged successfully."
+        else
+          echo "⚠️ build_dir/host not found, skipping packaging."
+        fi
+
     - name: Upload firmware directory
       uses: actions/upload-artifact@main
       if: steps.organize.outputs.status == 'success' && !cancelled()
@@ -352,7 +366,9 @@ jobs:
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
         body_path: release.txt
-        files: ${{ env.FIRMWARE }}/*
+        files: |
+          ${{ env.FIRMWARE }}/*
+          ${{ env.HOST_PACKAGE }}
 
     - name: Delete workflow runs
       uses: GitRML/delete-workflow-runs@main
