@@ -315,16 +315,27 @@ jobs:
       id: tag
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
-        echo "release_tag=$(date +"%Y.%m.%d-%H%M-immortalwrt24.10-6.6-cmcc_rax3000m-237")" >> $GITHUB_OUTPUT
-        touch release.txt
-        echo "cmcc_rax3000m-237大功率固件" >> release.txt
-        echo "后台：$WANNA_IP" >> release.txt
-        echo "账号：root" >> release.txt
-        echo "密码：无" >> release.txt
-        echo "默认主题：Bootstrap" >> release.txt
-        echo "集成插件：openclash adguardhome mosdns qmodem" >> release.txt
-        echo "编译源码：https://github.com/padavanonly/immortalwrt-mt798x-6.6" >> release.txt
-        echo "status=success" >> $GITHUB_OUTPUT
+          echo "release_tag=$(date +"%Y.%m.%d-%H%M-immortalwrt24.10-6.6-cmcc_rax3000m-237")" >> $GITHUB_OUTPUT
+          touch release.txt
+
+          # 提取所有 luci-app 包的核心名称（仅去除 _ 子设置，保留 - 附属包）
+          PLUGINS=$( \
+          $GITHUB_WORKSPACE/cfghelper.py get app $GITHUB_WORKSPACE/openwrt/.config \
+          | grep '^CONFIG_PACKAGE_luci-app-' \
+          | sed 's/^CONFIG_PACKAGE_luci-app-//' \
+          | sed 's/_.*//' \
+          | sort -u \
+          | tr '\n' ' ' \
+          )
+
+
+          echo "后台：$WANNA_IP" >> release.txt
+          echo "账号：root" >> release.txt
+          echo "密码：无" >> release.txt
+          echo "默认主题：Bootstrap" >> release.txt
+          echo "集成插件：${PLUGINS}" >> release.txt
+          echo "编译源码：https://github.com/padavanonly/immortalwrt-mt798x-6.6" >> release.txt
+          echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Upload firmware to release
       uses: softprops/action-gh-release@v3
