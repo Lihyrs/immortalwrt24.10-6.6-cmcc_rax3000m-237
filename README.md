@@ -20,9 +20,6 @@
 |------|------|
 | 🌐 **openclash** | 代理插件，支持多种代理协议（如 Shadowsocks、VMess、Trojan 等），提供规则分流、策略组管理及 Web 控制面板 |
 | 🛡️ **adguardhome** | DNS 去广告与隐私保护工具，支持自定义过滤规则、DNS 加密查询（DoH/DoT）及详细的查询日志统计 |
-| 🔍 **mosdns** | 灵活的分流 DNS 转发器，支持基于域名、IP 或地理位置的智能 DNS 解析策略，可与代理插件配合实现国内外域名分流 |
-| 🧭 **pbr** | 策略路由插件，根据源 IP、目标端口、域名或地理位置等条件自定义数据包路由走向，实现流量分流管理 |
-| 📊 **sqm** | 智能队列管理（Smart Queue Management），基于 Cake 或 fq_codel 算法优化网络延迟，减少缓冲膨胀（Bufferbloat） |
 | 🌍 **zerotier** | 虚拟组网工具，创建安全的二层/三层虚拟局域网，实现跨地域设备互联，支持 Web 控制台管理 |
 | 💾 **USB 支持** | 包括 USB 存储驱动（exFAT/NTFS/ext4 等文件系统支持）及 USB 网络适配器驱动（如 RNDIS、CDC-Ether 等） |
 | 📂 **网络共享** | 基于 ksmbd 内核态 SMB 服务的文件共享，搭配 openlist2 实现局域网内文件访问与权限管理 |
